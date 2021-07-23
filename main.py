@@ -6,6 +6,9 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 from flask_pymongo import PyMongo
+
+import geojson
+import shapely.wkt
 # pip install dnspython
 
 app = Flask(__name__)
@@ -16,16 +19,16 @@ mongo = PyMongo(app)
 
 @app.route('/addresses', methods=['GET'])
 def get_all_addresses():
-    mil4326WKT = mongo.db.Mil4326WKT
+    mil4326WKT = mongo.db.MilWKT4326
     output = []
-    for s in mil4326WKT.find():
-        output.append(s['INDIRIZZO'])
+    for s in mil4326WKT.find().limit(100):
+        output.append(s['INDIRIZZO'] + "|" + s['CI_VETTORE'])
     return jsonify({'result': output})
 
-
+# Estrae consumo energetico medio e totale raggruppato per sezione catastale (e Poligono WKT)
 @app.route('/avgs', methods=['GET'])
 def get_all_stars():
-    mil4326WKT = mongo.db.Mil4326WKT
+    mil4326WKT = mongo.db.MilWKT4326
     output = []
 
     match = {
@@ -49,10 +52,15 @@ def get_all_stars():
             }
         }
     }
-
-    for s in mil4326WKT.aggregate([match, group]):
-        output.append({'somma': s['SUM'], 'media': s['AVG'],
-                      'WKT': s['_id']['WKT'], 'SEZ': s['_id']['SEZ']})
+    limit = {
+        '$limit' : 10
+    }
+    
+    for s in mil4326WKT.aggregate([match, group, limit]):
+        g1= shapely.wkt.loads(s['_id']['WKT']) #Converte da WKT in GeoJson Geometry
+        g2 = geojson.Feature(geometry=g1, 
+        properties={'id':s['_id']['SEZ'], 'media':s['AVG'], 'somma':s['SUM'], 'sezione':s['_id']['SEZ']}) 
+        output.append(g2)                 
     return jsonify({'result': output})
 
 
