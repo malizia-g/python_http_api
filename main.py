@@ -6,6 +6,7 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 from flask_pymongo import PyMongo
+from flask_cors import CORS
 
 import geojson
 import shapely.wkt
@@ -15,7 +16,8 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb+srv://studente:studente@relab.rytr6.mongodb.net/ReLab?retryWrites=true&w=majority"
 
 mongo = PyMongo(app)
-
+# Per rispondere alle chiamate cross origin
+CORS(app)
 
 @app.route('/addresses', methods=['GET'])
 def get_all_addresses():
