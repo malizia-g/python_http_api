@@ -46,7 +46,7 @@ def get_vettore(foglio):
             "CI_VETTORE":s['CI_VETTORE']
         }
         )
-    return jsonify({'result': output})
+    return jsonify(output)
 
 
 
