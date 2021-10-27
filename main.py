@@ -75,6 +75,53 @@ def get_vettore_coord(lng, lat, r):
     return jsonify(output)
 
 
+# Estrae consumo energetico medio e totale raggruppato per sezione catastale (e Poligono WKT)
+@app.route('/geogeom/<float:lng>/<float:lat>/<float:r>', methods=['GET'])
+def get_avg(lng, lat, r):
+    print(type(lng))
+    mil4326WKT = mongo.db.MilWKT4326
+    output = []
+
+    match = {
+        '$match': {
+            '$and':
+            [
+                {'EP_H_ND': {'$gt': 0}},
+                {'WGS84_X': {'$gt': lng - r}},
+                {'WGS84_X': {'$lt': lng + r}},
+                {'WGS84_Y': {'$gt': lat - r}},
+                {'WGS84_Y': {'$lt': lat + r}}
+            ]
+        }
+    }
+    group = {
+        '$group': {
+            '_id': {
+                'SEZ': '$SEZ',
+                'WKT': '$WKT'
+            },
+            'AVG': {
+                '$avg': '$EP_H_ND'
+            },
+            'SUM': {
+                '$sum': '$EP_H_ND'
+            }
+        }
+    }
+    limit = {
+        '$limit': 10
+    }
+
+    for s in mil4326WKT.aggregate([match, group, limit]):
+        # Converte da WKT in GeoJson Geometry
+        g1 = shapely.wkt.loads(s['_id']['WKT'])
+        g2 = geojson.Feature(geometry=g1,
+                             properties={'id': s['_id']['SEZ'], 'media': s['AVG'], 'somma': s['SUM'], 'sezione': s['_id']['SEZ']})
+        output.append(g2)
+    return jsonify(geojson.FeatureCollection(output))
+
+
+
 
 # Annotation that allows the function to be hit at the specific URL.
 @app.route("/")
